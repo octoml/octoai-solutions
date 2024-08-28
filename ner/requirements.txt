@@ -1,9 +1,6 @@
 streamlit
 openai
 llama-index-core
-<<<<<<< Updated upstream
-llama-parse
-=======
 llama-parse
 streamlit-code-editor
->>>>>>> Stashed changes
+firecrawl-py=="^1.0.1"
