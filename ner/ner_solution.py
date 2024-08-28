@@ -37,6 +37,8 @@ st.write("## NER Solution")
 
 octoai_api_key = st.sidebar.text_input("OctoAI API Token [(get yours here)](https://octoai.cloud/n)", type="password")
 
+pdf_file = st.sidebar.file_uploader("Upload your PDF file here", type=".pdf")
+
 # Default schema - in a YAML file format
 
 yaml_format = """
@@ -51,9 +53,7 @@ executive_summary:
     desc: executive summary of the document
 """
 
-response_dict = code_editor(code=yaml_format, lang="yaml")
-
-pdf_file = st.file_uploader("Upload your PDF file here", type=".pdf")
+code_response = code_editor(code=yaml_format, lang="yaml")
 
 # Set up LlamaParse extractor
 parser = LlamaParse(
@@ -78,7 +78,7 @@ if pdf_file and octoai_api_key:
             doc_str += "\n"
 
     # Prepare the JSON schema
-    json_schema = convert_to_json_schema(response_dict['text'])
+    json_schema = convert_to_json_schema(code_response['text'])
 
     # Let's do some LLM magic here
     with st.status("Converting to JSON form..."):
