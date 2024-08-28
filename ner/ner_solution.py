@@ -52,7 +52,7 @@ octoai_api_key = st.sidebar.text_input(
 # Section 1: Inputs
 
 
-pdf_file = st.sidebar.file_uploader("Upload your PDF file here", type=".pdf")
+pdf_files = st.sidebar.file_uploader("Upload your PDF file here", type=".pdf", accept_multiple_files=True)
 
 # Default schema - in a YAML file format
 
@@ -83,69 +83,73 @@ web_parser = FirecrawlApp(api_key=os.environ["FIRECRAWL_API_KEY"])
 
 #################################################
 # Section 2: Processing the inputs
+st.session_state.doc_str = []
+if octoai_api_key:
 
-if pdf_file and octoai_api_key:
-    # Preprocess PDF
-    with st.status("Processing the PDFs into Markdown form..."):
-        # Store to disk
-        # FIXME - tmoreau: let's not do this in the final version
-        fp = Path("./", pdf_file.name)
-        with open(fp, mode="wb") as w:
-            w.write(pdf_file.read())
-        # Read in first document
-        documents = parser.load_data(Path("./", pdf_file.name))
-        doc_str = ""
-        for document in documents:
-            doc_str += document.text
-            doc_str += "\n"
-        st.session_state.doc_str = doc_str
+    if len(pdf_files):
+        # Preprocess PDF
+        with st.status("Processing the PDFs into Markdown form..."):
+            for pdf_file in pdf_files:
+                # Store to disk
+                # FIXME - tmoreau: let's not do this in the final version
+                fp = Path("./", pdf_file.name)
+                with open(fp, mode="wb") as w:
+                    w.write(pdf_file.read())
+                # Read in first document
+                documents = parser.load_data(Path("./", pdf_file.name))
+                doc_str = ""
+                for document in documents:
+                    doc_str += document.text
+                    doc_str += "\n"
+                st.session_state.doc_str.append(doc_str)
 
-elif website_url:
-    with st.status("Processing the website into Markdown form..."):
-        # Crawl a website:
-        crawl_status = web_parser.crawl_url(
-            website_url,
-            params={
-                "limit": 5,
-                "scrapeOptions": {"formats": ["markdown"]},
-                "excludePaths": ["/blog", "/docs"],
-            },
-            wait_until_done=True,
-            poll_interval=20,
-        )
-        doc_str = ""
-        for page in crawl_status["data"]:
-            doc_str += f"# {page['metadata']['title']}\n"
-            doc_str += page["markdown"]
-            doc_str += "\n"
-
-        st.session_state.doc_str = doc_str
+    elif website_url:
+        with st.status("Processing the website into Markdown form..."):
+            # Crawl a website:
+            crawl_status = web_parser.crawl_url(
+                website_url,
+                params={
+                    "limit": 5,
+                    "scrapeOptions": {"formats": ["markdown"]},
+                    "excludePaths": ["/blog", "/docs"],
+                },
+                wait_until_done=True,
+                poll_interval=20,
+            )
+            doc_str = ""
+            for page in crawl_status["data"]:
+                doc_str += f"# {page['metadata']['title']}\n"
+                doc_str += page["markdown"]
+                doc_str += "\n"
+            st.session_state.doc_str.append(doc_str)
 
 
 #################################################
 # Section 3: Processing the outputs
 
-if "doc_str" in st.session_state.keys() and st.session_state.doc_str != "":
+if "doc_str" in st.session_state.keys() and len(st.session_state.doc_str) > 0:
     with st.expander(
-        f"See extracted markdown: {st.session_state.doc_str[:50]}", expanded=False
+        f"See extracted markdown:\n{st.session_state.doc_str[0][:64]}...", expanded=False
     ):
         tab1, tab2 = st.tabs(["Markdown", "Raw"])
 
         with tab1:
-            st.markdown(st.session_state.doc_str)
+            st.markdown(st.session_state.doc_str[0])
         with tab2:
-            st.code(st.session_state.doc_str, language="markdown")
+            st.code(st.session_state.doc_str[0], language="markdown")
 
     # Prepare the JSON schema
     json_schema = convert_to_json_schema(code_response["text"])
 
     # Let's do some LLM magic here
     with st.status("Converting to JSON form..."):
-        client = OpenAI(
-            base_url="https://text.octoai.run/v1",
-            api_key=octoai_api_key,
-        )
-        system_prompt = """
+        json_outputs = []
+        for doc_str in st.session_state.doc_str:
+            client = OpenAI(
+                base_url="https://text.octoai.run/v1",
+                api_key=octoai_api_key,
+            )
+            system_prompt = """
 You are an expert LLM that processes large files and extracts entities according to the provided JSON schema:
 
 {}
@@ -153,21 +157,22 @@ You are an expert LLM that processes large files and extracts entities according
 ONLY RETURN THE JSON OBJECT, DON'T SAY ANYTHING ELSE, THIS IS CRUCIAL.
 """
 
-        data = {
-            "model": "meta-llama-3.1-70b-instruct",
-            "messages": [
-                {"role": "system", "content": system_prompt.format(json_schema)},
-                {"role": "user", "content": doc_str},
-            ],
-            "temperature": 0,
-            "max_tokens": 131072,
-        }
-        # Derive output values
-        response = client.chat.completions.create(**data)
-        json_output = response.choices[0].message.content
-        json_output = json_output.replace("```json", "")
-        json_output = json_output.replace("```", "")
-        json_output = json.loads(json_output)
-        data_frame = pd.json_normalize(json_output)
+            data = {
+                "model": "meta-llama-3.1-70b-instruct",
+                "messages": [
+                    {"role": "system", "content": system_prompt.format(json_schema)},
+                    {"role": "user", "content": doc_str}
+                ],
+                "temperature": 0,
+                "max_tokens": 131072
+            }
+            # Derive output values
+            response = client.chat.completions.create(**data)
+            json_output = response.choices[0].message.content
+            json_output = json_output.replace("```json", "")
+            json_output = json_output.replace("```", "")
+            json_output = json.loads(json_output)
+            json_outputs.append(json_output)
+        data_frame = pd.json_normalize(json_outputs)
 
     st.dataframe(data_frame)

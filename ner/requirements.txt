@@ -3,4 +3,4 @@ openai
 llama-index-core
 llama-parse
 streamlit-code-editor
-firecrawl-py=="^1.0.1"
+firecrawl-py
