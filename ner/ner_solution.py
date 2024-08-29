@@ -1,8 +1,11 @@
+import base64
 import json
 import os
 import pandas as pd
+import requests
 import snowflake
 import streamlit as st
+import tempfile
 import yaml
 
 from code_editor import code_editor
@@ -36,6 +39,32 @@ def convert_to_json_schema(yaml_str):
 
     return ret_str
 
+def transcribe_audio(file_path: str, octoai_token: str):
+    """
+    Takes the file path of an audio file and transcribes it to text.
+
+    Returns a string with the transcribed text.
+    """
+    with open(file_path, "rb") as f:
+        encoded_audio = str(base64.b64encode(f.read()), "utf-8")
+        reply = requests.post(
+            "https://whisper-4jkxk521l3v1.octoai.run/predict",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {octoai_token}",
+            },
+            json={"audio": encoded_audio},
+            timeout=300,
+        )
+        try:
+            transcript = reply.json()["transcription"]
+        except Exception as e:
+            print(e)
+            print(reply.text)
+            raise ValueError("The transcription could not be completed.")
+
+    return transcript
+
 st.set_page_config(layout="wide", page_title="NER Playground")
 st.write("## NER Playground")
 
@@ -66,8 +95,8 @@ with st.sidebar.expander("Snowflake Settings", expanded=False):
 # Section 1: Inputs
 
 
-pdf_files = st.sidebar.file_uploader(
-    "Upload your PDF file here", type=".pdf", accept_multiple_files=True
+upload_files = st.sidebar.file_uploader(
+    "Upload your PDF file here", type=[".pdf", ".mp3", ".mp4", ".wav"], accept_multiple_files=True
 )
 
 # Default schema - in a YAML file format
@@ -104,26 +133,31 @@ web_parser = FirecrawlApp(api_key=os.environ["FIRECRAWL_API_KEY"])
 st.session_state.doc_str = []
 if octoai_api_key:
 
-    if len(pdf_files):
-        if len(pdf_files) == 1:
-            spinner_message = f"Processing {pdf_files[0].name} into Markdown..."
+    if len(upload_files):
+        if len(upload_files) == 1:
+            spinner_message = f"Processing {upload_files[0].name} into Markdown..."
         else:
-            spinner_message = f"Processing {len(pdf_files)} PDFs into Markdown..."
-        # Preprocess PDF
+            spinner_message = f"Processing {len(upload_files)} files into Markdown..."
+        # Preprocess documents
         with st.status(spinner_message):
-            for pdf_file in pdf_files:
+            for upload_file in upload_files:
                 # Store to disk
-                # FIXME - tmoreau: let's not do this in the final version
-                fp = Path("./", pdf_file.name)
-                with open(fp, mode="wb") as w:
-                    w.write(pdf_file.read())
-                # Read in first document
-                documents = parser.load_data(Path("./", pdf_file.name))
-                doc_str = ""
-                for document in documents:
-                    doc_str += document.text
-                    doc_str += "\n"
-                st.session_state.doc_str.append(doc_str)
+                with tempfile.NamedTemporaryFile() as tf:
+                    with open(tf.name, mode="wb") as w:
+                        w.write(upload_file.read())
+                    # PDF handling
+                    if upload_file.name.endswith(".pdf"):
+                        # Read in first document
+                        documents = parser.load_data(tf.name)
+                        doc_str = ""
+                        for document in documents:
+                            doc_str += document.text
+                            doc_str += "\n"
+                    # Audio file handling
+                    elif upload_file.name.endswith(".mp3") or upload_file.name.endswith(".mp4") or upload_file.name.endswith(".wav"):
+                        doc_str = transcribe_audio(tf.name, octoai_api_key)
+                    st.session_state.doc_str.append(doc_str)
+
 
     elif website_url:
         if "," not in website_url:
