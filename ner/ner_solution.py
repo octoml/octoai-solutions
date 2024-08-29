@@ -108,6 +108,7 @@ upload_files = st.sidebar.file_uploader(
 # Default schema - in a YAML file format
 yaml_format = """
 # Describe the fields of information in YAML format
+# Tip: Ctrl + Enter saves the schema (Cmd + Enter on Mac).
 doc_title:
     desc: title of the document
 authors:
@@ -234,7 +235,7 @@ if octoai_api_key:
 
 if "doc_str" in st.session_state.keys() and len(st.session_state.doc_str) > 0:
     with st.expander(
-        f"See extracted markdown:\n{st.session_state.doc_str[0][:64]}...",
+        f"See the extracted markdown:\n `{st.session_state.doc_str[0][:32]}`...",
         expanded=False,
     ):
         tab1, tab2 = st.tabs(["Markdown", "Raw"])
