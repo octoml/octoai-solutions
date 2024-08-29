@@ -1,6 +1,7 @@
 import json
 import os
 import pandas as pd
+import snowflake
 import streamlit as st
 import yaml
 
@@ -9,6 +10,7 @@ from llama_parse import LlamaParse
 from firecrawl import FirecrawlApp
 from openai import OpenAI
 from pathlib import Path
+from snowflake.connector.pandas_tools import write_pandas
 
 
 def convert_to_json_schema(yaml_str):
@@ -34,8 +36,7 @@ def convert_to_json_schema(yaml_str):
 
     return ret_str
 
-
-st.set_page_config(layout="wide", page_title="NER Solution")
+st.set_page_config(layout="wide", page_title="NER Playground")
 st.write("## NER Playground")
 
 if "octoai_api_key" not in st.session_state:
@@ -52,6 +53,14 @@ st.sidebar.caption(
 """
 )
 
+with st.sidebar.expander("Snowflake Settings", expanded=False):
+    snowflake_account = st.text_input("Snowflake Account", value="")
+    snowflake_user = st.text_input("Snowflake User", value="")
+    snowflake_password = st.text_input("Snowflake Password", value="", type="password")
+    snowflake_warehouse = st.text_input("Snowflake Warehouse", value="")
+    snowflake_database = st.text_input("Snowflake Database", value="")
+    snowflake_schema = st.text_input("Snowflake Schema", value="")
+    snowflake_table = st.text_input("Snowflake Table", value="")
 
 #################################################
 # Section 1: Inputs
@@ -203,3 +212,39 @@ ONLY RETURN THE JSON OBJECT, DON'T SAY ANYTHING ELSE, THIS IS CRUCIAL.
         data_frame = pd.json_normalize(json_outputs)
 
     st.dataframe(data_frame)
+
+    # Store to Snowflake
+    if snowflake_account and snowflake_user and snowflake_password and snowflake_warehouse and snowflake_database and snowflake_schema and snowflake_table:
+        if st.button("Store to Snowflake table"):
+
+            with st.status("Uploading to Snowflake..."):
+
+                # Snowflake Connector
+                conn = snowflake.connector.connect(
+                    user=snowflake_user,
+                    password=snowflake_password,
+                    account=snowflake_account,
+                    warehouse=snowflake_warehouse,
+                    database=snowflake_database,
+                    schema=snowflake_schema
+                )
+
+                # Create Snowflake Warehouse, Database, Schema if they do not exist
+                conn.cursor().execute("CREATE WAREHOUSE IF NOT EXISTS {}".format(snowflake_warehouse))
+                conn.cursor().execute("CREATE DATABASE IF NOT EXISTS {}".format(snowflake_database))
+                conn.cursor().execute("USE DATABASE {}".format(snowflake_database))
+                conn.cursor().execute("CREATE SCHEMA IF NOT EXISTS {}".format(snowflake_schema))
+                conn.cursor().execute("USE WAREHOUSE {}".format(snowflake_warehouse))
+                conn.cursor().execute("USE DATABASE {}".format(snowflake_database))
+                conn.cursor().execute("USE SCHEMA {}".format(snowflake_schema))
+
+                # Write pandas DataFrame to Snowflake
+                success, _, _, _ = write_pandas(
+                    conn=conn,
+                    df=data_frame,
+                    table_name=snowflake_table,
+                    schema=snowflake_schema,
+                    database=snowflake_database,
+                    auto_create_table=True,
+                    overwrite=True
+                )

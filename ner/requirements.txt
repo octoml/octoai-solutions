@@ -4,3 +4,4 @@ llama-index-core
 llama-parse
 streamlit-code-editor
 firecrawl-py
+snowflake-connector-python[pandas]
