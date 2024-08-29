@@ -69,6 +69,7 @@ def transcribe_audio(file_path: str, octoai_token: str):
 
 st.set_page_config(layout="wide", page_title="NER Playground")
 st.write("## NER Playground")
+st.caption("Named Entity Recognition Playground.")
 
 st.sidebar.image("assets/octoai_electric_blue.png", width=200)
 
