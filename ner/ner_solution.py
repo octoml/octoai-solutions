@@ -314,8 +314,8 @@ ONLY RETURN THE JSON OBJECT, DON'T SAY ANYTHING ELSE, THIS IS CRUCIAL.
             json_output = json.loads(json_output)
             json_outputs.append(json_output)
 
-        # Update the dataframe
-        update_dataframe(json_output)
+            # Update the dataframe
+            update_dataframe(json_output)
 
 if "data_frame" in st.session_state and not st.session_state.data_frame.empty:
     st.dataframe(st.session_state.data_frame)
