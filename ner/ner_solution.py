@@ -67,6 +67,31 @@ def transcribe_audio(file_path: str, octoai_token: str):
     return transcript
 
 
+def reset_dataframe():
+    """
+    Resets the dataframe to an empty state.
+    """
+    st.session_state["data_frame"] = pd.DataFrame()
+
+
+def update_dataframe(json_output):
+    """
+    Takes the JSON output from the LLM and updates the dataframe with the extracted entities.
+
+    It will extend the dataframe with the new data.
+
+    This will directly update st.session_state.data_frame.
+    """
+    if "data_frame" not in st.session_state:
+        reset_dataframe()
+
+    # Extend the dataframe
+    data_frame = st.session_state.data_frame
+    new_data = pd.json_normalize(json_output)
+    data_frame = pd.concat([data_frame, new_data], ignore_index=True)
+    st.session_state.data_frame = data_frame
+
+
 st.set_page_config(layout="wide", page_title="NER Playground")
 st.write("## NER Playground")
 st.caption("Named Entity Recognition Playground.")
@@ -119,12 +144,16 @@ author_emails:
 executive_summary:
     desc: executive summary of the document
 """
-if "code_response" not in st.session_state:
-    st.session_state["code_response"] = {"text": yaml_format}
 
 
-def update_code_response(code):
-    st.session_state["code_response"] = code
+def update_json_schema(code):
+    # Prepare the JSON schema
+    json_schema = convert_to_json_schema(code)
+    st.session_state["json_schema"] = json_schema
+
+
+if "json_schema" not in st.session_state:
+    update_json_schema(yaml_format)
 
 
 # add a button with text: 'Copy'
@@ -147,8 +176,9 @@ custom_btns = [
     },
 ]
 code_response = code_editor(code=yaml_format, lang="yaml", buttons=custom_btns)
-if code_response:
-    update_code_response(code_response)
+if code_response["text"]:
+    print(code_response["text"])
+    update_json_schema(code_response["text"])
 
 # Set up LlamaParse extractor
 parser = LlamaParse(
@@ -177,7 +207,7 @@ if octoai_api_key:
         with st.status(spinner_message):
             for upload_file in upload_files:
                 # Store to disk
-                with tempfile.NamedTemporaryFile() as tf:
+                with tempfile.NamedTemporaryFile(suffix=".pdf") as tf:
                     with open(tf.name, mode="wb") as w:
                         w.write(upload_file.read())
                     # PDF handling
@@ -246,9 +276,6 @@ if "doc_str" in st.session_state.keys() and len(st.session_state.doc_str) > 0:
         with tab2:
             st.code(st.session_state.doc_str[0], language="markdown")
 
-    # Prepare the JSON schema
-    json_schema = convert_to_json_schema(st.session_state.code_response["text"])
-
     # Let's do some LLM magic here
     with st.status("Converting to JSON form..."):
         json_outputs = []
@@ -268,7 +295,10 @@ ONLY RETURN THE JSON OBJECT, DON'T SAY ANYTHING ELSE, THIS IS CRUCIAL.
             data = {
                 "model": "meta-llama-3.1-70b-instruct",
                 "messages": [
-                    {"role": "system", "content": system_prompt.format(json_schema)},
+                    {
+                        "role": "system",
+                        "content": system_prompt.format(st.session_state.json_schema),
+                    },
                     {"role": "user", "content": doc_str},
                 ],
                 "temperature": 0,
@@ -281,9 +311,12 @@ ONLY RETURN THE JSON OBJECT, DON'T SAY ANYTHING ELSE, THIS IS CRUCIAL.
             json_output = json_output.replace("```", "")
             json_output = json.loads(json_output)
             json_outputs.append(json_output)
-        data_frame = pd.json_normalize(json_outputs)
 
-    st.dataframe(data_frame)
+        # Update the dataframe
+        update_dataframe(json_output)
+
+    st.dataframe(st.session_state.data_frame)
+    st.button("Reset Dataframe", on_click=reset_dataframe)
 
     # Store to Snowflake
     if (
@@ -327,7 +360,7 @@ ONLY RETURN THE JSON OBJECT, DON'T SAY ANYTHING ELSE, THIS IS CRUCIAL.
                 # Write pandas DataFrame to Snowflake
                 success, _, _, _ = write_pandas(
                     conn=conn,
-                    df=data_frame,
+                    df=st.session_state.data_frame,
                     table_name=snowflake_table,
                     schema=snowflake_schema,
                     database=snowflake_database,
