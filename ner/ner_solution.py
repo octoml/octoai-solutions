@@ -52,7 +52,9 @@ octoai_api_key = st.sidebar.text_input(
 # Section 1: Inputs
 
 
-pdf_files = st.sidebar.file_uploader("Upload your PDF file here", type=".pdf", accept_multiple_files=True)
+pdf_files = st.sidebar.file_uploader(
+    "Upload your PDF file here", type=".pdf", accept_multiple_files=True
+)
 
 # Default schema - in a YAML file format
 
@@ -77,7 +79,9 @@ parser = LlamaParse(
     result_type="markdown",
 )
 
-website_url = st.sidebar.text_input("Enter the URL of the website to scrape")
+website_url = st.sidebar.text_input(
+    "Enter the URL of the website to scrape (use comma for multiple URLs)"
+)
 
 web_parser = FirecrawlApp(api_key=os.environ["FIRECRAWL_API_KEY"])
 
@@ -87,8 +91,12 @@ st.session_state.doc_str = []
 if octoai_api_key:
 
     if len(pdf_files):
+        if len(pdf_files) == 1:
+            spinner_message = f"Processing {pdf_files[0].name} into Markdown..."
+        else:
+            spinner_message = f"Processing {len(pdf_files)} PDFs into Markdown..."
         # Preprocess PDF
-        with st.status("Processing the PDFs into Markdown form..."):
+        with st.status(spinner_message):
             for pdf_file in pdf_files:
                 # Store to disk
                 # FIXME - tmoreau: let's not do this in the final version
@@ -104,24 +112,37 @@ if octoai_api_key:
                 st.session_state.doc_str.append(doc_str)
 
     elif website_url:
-        with st.status("Processing the website into Markdown form..."):
-            # Crawl a website:
-            crawl_status = web_parser.crawl_url(
-                website_url,
-                params={
-                    "limit": 5,
-                    "scrapeOptions": {"formats": ["markdown"]},
-                    "excludePaths": ["/blog", "/docs"],
-                },
-                wait_until_done=True,
-                poll_interval=20,
+        if "," not in website_url:
+            website_url_list = [website_url]
+            spinner_message = f"Scraping {website_url} into Markdown..."
+        else:
+            website_url_list = website_url.split(",")
+            spinner_message = (
+                f"Scraping {len(website_url_list)} websites into Markdown..."
             )
-            doc_str = ""
-            for page in crawl_status["data"]:
-                doc_str += f"# {page['metadata']['title']}\n"
-                doc_str += page["markdown"]
-                doc_str += "\n"
-            st.session_state.doc_str.append(doc_str)
+
+        # Remove whitespaces
+        website_url_list = [url.strip() for url in website_url_list]
+
+        with st.status(spinner_message):
+            for url in website_url_list:
+                # Crawl a website:
+                crawl_status = web_parser.crawl_url(
+                    url,
+                    params={
+                        "limit": 5,
+                        "scrapeOptions": {"formats": ["markdown"]},
+                        "excludePaths": ["/blog", "/docs"],
+                    },
+                    wait_until_done=True,
+                    poll_interval=20,
+                )
+                doc_str = ""
+                for page in crawl_status["data"]:
+                    doc_str += f"# {page['metadata']['title']}\n"
+                    doc_str += page["markdown"]
+                    doc_str += "\n"
+                st.session_state.doc_str.append(doc_str)
 
 
 #################################################
@@ -129,7 +150,8 @@ if octoai_api_key:
 
 if "doc_str" in st.session_state.keys() and len(st.session_state.doc_str) > 0:
     with st.expander(
-        f"See extracted markdown:\n{st.session_state.doc_str[0][:64]}...", expanded=False
+        f"See extracted markdown:\n{st.session_state.doc_str[0][:64]}...",
+        expanded=False,
     ):
         tab1, tab2 = st.tabs(["Markdown", "Raw"])
 
@@ -161,10 +183,10 @@ ONLY RETURN THE JSON OBJECT, DON'T SAY ANYTHING ELSE, THIS IS CRUCIAL.
                 "model": "meta-llama-3.1-70b-instruct",
                 "messages": [
                     {"role": "system", "content": system_prompt.format(json_schema)},
-                    {"role": "user", "content": doc_str}
+                    {"role": "user", "content": doc_str},
                 ],
                 "temperature": 0,
-                "max_tokens": 131072
+                "max_tokens": 131072,
             }
             # Derive output values
             response = client.chat.completions.create(**data)
