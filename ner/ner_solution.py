@@ -42,9 +42,14 @@ if "octoai_api_key" not in st.session_state:
     st.session_state["octoai_api_key"] = os.environ.get("OCTOAI_API_KEY", "")
 
 octoai_api_key = st.sidebar.text_input(
-    "OctoAI API Token [(get yours here)](https://octoai.cloud/n)",
+    "OctoAI API Token (get yours [here](https://octoai.cloud/))",
     type="password",
     value=st.session_state.octoai_api_key,
+)
+st.sidebar.caption(
+    """
+    See our [docs](https://octo.ai/docs/getting-started/how-to-create-octoai-access-token) for more information on how to get an API token.
+"""
 )
 
 
