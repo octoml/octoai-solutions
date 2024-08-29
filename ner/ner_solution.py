@@ -129,6 +129,7 @@ upload_files = st.sidebar.file_uploader(
     "Upload your PDF file here",
     type=[".pdf", ".mp3", ".mp4", ".wav"],
     accept_multiple_files=True,
+    key="upload_files",
 )
 
 # Default schema - in a YAML file format
@@ -187,9 +188,8 @@ parser = LlamaParse(
     result_type="markdown",
 )
 
-website_url = st.sidebar.text_input(
-    "Enter the URL of the website to scrape (use comma for multiple URLs)"
-)
+website_url = st.sidebar.text_input("Enter the URL of the website to scrape")
+st.sidebar.caption("Use comma for multiple URLs.")
 
 web_parser = FirecrawlApp(api_key=os.environ["FIRECRAWL_API_KEY"])
 
@@ -315,6 +315,7 @@ ONLY RETURN THE JSON OBJECT, DON'T SAY ANYTHING ELSE, THIS IS CRUCIAL.
         # Update the dataframe
         update_dataframe(json_output)
 
+if "data_frame" in st.session_state and not st.session_state.data_frame.empty:
     st.dataframe(st.session_state.data_frame)
     st.button("Reset Dataframe", on_click=reset_dataframe)
 
