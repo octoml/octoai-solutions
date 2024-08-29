@@ -39,6 +39,7 @@ def convert_to_json_schema(yaml_str):
 
     return ret_str
 
+
 def transcribe_audio(file_path: str, octoai_token: str):
     """
     Takes the file path of an audio file and transcribes it to text.
@@ -65,8 +66,11 @@ def transcribe_audio(file_path: str, octoai_token: str):
 
     return transcript
 
+
 st.set_page_config(layout="wide", page_title="NER Playground")
 st.write("## NER Playground")
+
+st.sidebar.image("assets/octoai_electric_blue.png", width=200)
 
 if "octoai_api_key" not in st.session_state:
     st.session_state["octoai_api_key"] = os.environ.get("OCTOAI_API_KEY", "")
@@ -96,11 +100,12 @@ with st.sidebar.expander("Snowflake Settings", expanded=False):
 
 
 upload_files = st.sidebar.file_uploader(
-    "Upload your PDF file here", type=[".pdf", ".mp3", ".mp4", ".wav"], accept_multiple_files=True
+    "Upload your PDF file here",
+    type=[".pdf", ".mp3", ".mp4", ".wav"],
+    accept_multiple_files=True,
 )
 
 # Default schema - in a YAML file format
-
 yaml_format = """
 # Describe the fields of information in YAML format
 doc_title:
@@ -112,8 +117,36 @@ author_emails:
 executive_summary:
     desc: executive summary of the document
 """
+if "code_response" not in st.session_state:
+    st.session_state["code_response"] = {"text": yaml_format}
 
-code_response = code_editor(code=yaml_format, lang="yaml")
+
+def update_code_response(code):
+    st.session_state["code_response"] = code
+
+
+# add a button with text: 'Copy'
+custom_btns = [
+    {
+        "name": "Copy",
+        "feather": "Copy",
+        "alwaysOn": True,
+        "commands": ["copyAll"],
+        "hasText": True,
+        "style": {"top": "0.46rem", "right": "0.4rem"},
+    },
+    {
+        "name": "Save",
+        "feather": "Save",
+        "alwaysOn": True,
+        "commands": ["submit"],
+        "hasText": True,
+        "style": {"bottom": "0.46rem", "right": "0.4rem"},
+    },
+]
+code_response = code_editor(code=yaml_format, lang="yaml", buttons=custom_btns)
+if code_response:
+    update_code_response(code_response)
 
 # Set up LlamaParse extractor
 parser = LlamaParse(
@@ -154,15 +187,18 @@ if octoai_api_key:
                             doc_str += document.text
                             doc_str += "\n"
                     # Audio file handling
-                    elif upload_file.name.endswith(".mp3") or upload_file.name.endswith(".mp4") or upload_file.name.endswith(".wav"):
+                    elif (
+                        upload_file.name.endswith(".mp3")
+                        or upload_file.name.endswith(".mp4")
+                        or upload_file.name.endswith(".wav")
+                    ):
                         doc_str = transcribe_audio(tf.name, octoai_api_key)
                     st.session_state.doc_str.append(doc_str)
-
 
     elif website_url:
         if "," not in website_url:
             website_url_list = [website_url]
-            spinner_message = f"Scraping {website_url} into Markdown..."
+            spinner_message = f"Scrapping {website_url} into Markdown..."
         else:
             website_url_list = website_url.split(",")
             spinner_message = (
@@ -209,7 +245,7 @@ if "doc_str" in st.session_state.keys() and len(st.session_state.doc_str) > 0:
             st.code(st.session_state.doc_str[0], language="markdown")
 
     # Prepare the JSON schema
-    json_schema = convert_to_json_schema(code_response["text"])
+    json_schema = convert_to_json_schema(st.session_state.code_response["text"])
 
     # Let's do some LLM magic here
     with st.status("Converting to JSON form..."):
@@ -248,7 +284,15 @@ ONLY RETURN THE JSON OBJECT, DON'T SAY ANYTHING ELSE, THIS IS CRUCIAL.
     st.dataframe(data_frame)
 
     # Store to Snowflake
-    if snowflake_account and snowflake_user and snowflake_password and snowflake_warehouse and snowflake_database and snowflake_schema and snowflake_table:
+    if (
+        snowflake_account
+        and snowflake_user
+        and snowflake_password
+        and snowflake_warehouse
+        and snowflake_database
+        and snowflake_schema
+        and snowflake_table
+    ):
         if st.button("Store to Snowflake table"):
 
             with st.status("Uploading to Snowflake..."):
@@ -260,14 +304,20 @@ ONLY RETURN THE JSON OBJECT, DON'T SAY ANYTHING ELSE, THIS IS CRUCIAL.
                     account=snowflake_account,
                     warehouse=snowflake_warehouse,
                     database=snowflake_database,
-                    schema=snowflake_schema
+                    schema=snowflake_schema,
                 )
 
                 # Create Snowflake Warehouse, Database, Schema if they do not exist
-                conn.cursor().execute("CREATE WAREHOUSE IF NOT EXISTS {}".format(snowflake_warehouse))
-                conn.cursor().execute("CREATE DATABASE IF NOT EXISTS {}".format(snowflake_database))
+                conn.cursor().execute(
+                    "CREATE WAREHOUSE IF NOT EXISTS {}".format(snowflake_warehouse)
+                )
+                conn.cursor().execute(
+                    "CREATE DATABASE IF NOT EXISTS {}".format(snowflake_database)
+                )
                 conn.cursor().execute("USE DATABASE {}".format(snowflake_database))
-                conn.cursor().execute("CREATE SCHEMA IF NOT EXISTS {}".format(snowflake_schema))
+                conn.cursor().execute(
+                    "CREATE SCHEMA IF NOT EXISTS {}".format(snowflake_schema)
+                )
                 conn.cursor().execute("USE WAREHOUSE {}".format(snowflake_warehouse))
                 conn.cursor().execute("USE DATABASE {}".format(snowflake_database))
                 conn.cursor().execute("USE SCHEMA {}".format(snowflake_schema))
@@ -280,5 +330,5 @@ ONLY RETURN THE JSON OBJECT, DON'T SAY ANYTHING ELSE, THIS IS CRUCIAL.
                     schema=snowflake_schema,
                     database=snowflake_database,
                     auto_create_table=True,
-                    overwrite=True
+                    overwrite=True,
                 )
