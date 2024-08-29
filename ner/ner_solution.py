@@ -188,7 +188,9 @@ parser = LlamaParse(
     result_type="markdown",
 )
 
-website_url = st.sidebar.text_input("Enter the URL of the website to scrape")
+website_url = st.sidebar.text_input(
+    "Enter the URL of the website to scrape", key="website_url"
+)
 st.sidebar.caption("Use comma for multiple URLs.")
 
 web_parser = FirecrawlApp(api_key=os.environ["FIRECRAWL_API_KEY"])
