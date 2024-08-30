@@ -67,6 +67,51 @@ def transcribe_audio(file_path: str, octoai_token: str):
     return transcript
 
 
+def file_to_base64(file_path):
+    with open(file_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode('utf-8')
+
+
+def process_image(file_path: str, octoai_token: str):
+    # Convert the images to base64 strings
+    base64_str = f"data:image/png;base64,{file_to_base64(file_path)}"
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "Describe what you see in the image in great detail"
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": base64_str
+                    }
+                }
+            ]
+        }
+    ]
+    url = "https://text.octoai.run/v1/chat/completions"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {octoai_token}"
+    }
+    data = {
+        "messages": messages,
+        "model": "phi-3.5-vision-instruct",
+        "max_tokens": 1024,
+        "presence_penalty": 0,
+        "temperature": 0.1,
+        "top_p": 0.9,
+        "stream": "False"
+    }
+
+    response = requests.post(url, headers=headers, data=json.dumps(data))
+    response = json.loads(response.content.decode('utf-8'))
+    return response["choices"][0]["message"]["content"]
+
+
 def reset_dataframe():
     """
     Resets the dataframe to an empty state.
@@ -127,7 +172,7 @@ with st.sidebar.expander("Snowflake Settings", expanded=False):
 
 upload_files = st.sidebar.file_uploader(
     "Upload your PDF file here",
-    type=[".pdf", ".mp3", ".mp4", ".wav"],
+    type=[".pdf", ".mp3", ".mp4", ".wav", ".jpg", ".jpeg"],
     accept_multiple_files=True,
     key="upload_files",
 )
@@ -227,6 +272,11 @@ if octoai_api_key:
                         or upload_file.name.endswith(".wav")
                     ):
                         doc_str = transcribe_audio(tf.name, octoai_api_key)
+                    elif (
+                        upload_file.name.endswith("jpg")
+                        or upload_file.name.endswith("jpeg")
+                    ):
+                        doc_str = process_image(tf.name, octoai_api_key)
                     st.session_state.doc_str.append(doc_str)
 
     elif website_url:
