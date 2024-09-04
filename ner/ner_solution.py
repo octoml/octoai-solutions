@@ -320,7 +320,6 @@ if (st.session_state.octoai_api_key is not None) and (
                             "scrapeOptions": {"formats": ["markdown"]},
                             "excludePaths": ["/blog", "/docs"],
                         },
-                        wait_until_done=True,
                         poll_interval=20,
                     )
                 except Exception as e:
