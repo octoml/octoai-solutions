@@ -131,36 +131,61 @@ def update_dataframe(json_output):
     st.session_state.data_frame = data_frame
 
 
-st.set_page_config(layout="wide", page_title="NER Playground")
-st.write("## NER Playground")
-st.caption("Named Entity Recognition Playground.")
+def submit_onclick():
+    st.session_state["process_new_inputs"] = True
 
-# st.sidebar.image("assets/octoai_electric_blue.png", width=200)
+
+def submit_new_token():
+    st.session_state.octoai_api_key = st.session_state.token_text_input
+
+
+st.set_page_config(layout="wide", page_title="NER Playground")
 
 if "octoai_api_key" not in st.session_state:
-    st.session_state["octoai_api_key"] = os.environ.get("OCTOAI_API_KEY", "")
+    st.session_state.octoai_api_key = os.environ.get("OCTOAI_API_KEY", None)
 
-octoai_api_key = st.sidebar.text_input(
-    "OctoAI API Token (get yours [here](https://octoai.cloud/))",
-    type="password",
-    value=st.session_state.octoai_api_key,
-)
-st.sidebar.caption(
-    """
-    See our [docs](https://octo.ai/docs/getting-started/how-to-create-octoai-access-token) for more information on how to get an API token.
-"""
-)
+# Sidebar tabs sections
+with st.sidebar:
+
+    if st.session_state.octoai_api_key is None:
+        octoai_api_key = st.text_input(
+            "OctoAI API Token (get yours [here](https://octoai.cloud/))",
+            type="password",
+            key="token_text_input",
+            on_change=submit_new_token,
+        )
+        st.caption(
+            """
+            See our [docs](https://octo.ai/docs/getting-started/how-to-create-octoai-access-token) for more information on how to get an API token.
+        """
+        )
+    else:
+        with st.form("input-form", clear_on_submit=True, border=True):
+            tab1, tab2 = st.tabs(["Files", "URLs"])
+
+            with tab1:
+                upload_files = st.file_uploader(
+                    "Upload your files here",
+                    type=[".pdf", ".mp3", ".mp4", ".wav", ".jpg", ".jpeg"],
+                    accept_multiple_files=True,
+                    key="upload_files",
+                )
+                st.caption("Click on submit after uploading to process the files.")
+
+            with tab2:
+                website_url = st.text_input(
+                    "Enter the URL of the website to scrape", key="website_url"
+                )
+                st.caption("Use comma for multiple URLs.")
+
+            st.form_submit_button("Submit", on_click=submit_onclick)
+
+st.write("## NER Playground")
+st.caption("Named Entity Recognition Playground.")
 
 #################################################
 # Section 1: Inputs
 
-
-upload_files = st.sidebar.file_uploader(
-    "Upload your PDF file here",
-    type=[".pdf", ".mp3", ".mp4", ".wav", ".jpg", ".jpeg"],
-    accept_multiple_files=True,
-    key="upload_files",
-)
 
 # Default schema - in a YAML file format
 yaml_format = """
@@ -186,7 +211,6 @@ def update_json_schema(code):
 if "json_schema" not in st.session_state:
     update_json_schema(yaml_format)
 
-
 # add a button with text: 'Copy'
 custom_btns = [
     {
@@ -211,6 +235,14 @@ if code_response["text"]:
     print(code_response["text"])
     update_json_schema(code_response["text"])
 
+if not st.session_state.get("process_new_inputs", False) and (
+    "data_frame" not in st.session_state or st.session_state.data_frame.empty
+):
+    st.write("👈 Upload files or enter URLs on the side bar to extract entities.")
+
+#################################################
+# Section 2: Processing the inputs
+
 # Set up LlamaParse extractor
 parser = LlamaParse(
     # Get API key from https://github.com/run-llama/llama_parse
@@ -218,17 +250,13 @@ parser = LlamaParse(
     result_type="markdown",
 )
 
-website_url = st.sidebar.text_input(
-    "Enter the URL of the website to scrape", key="website_url"
-)
-st.sidebar.caption("Use comma for multiple URLs.")
-
 web_parser = FirecrawlApp(api_key=os.environ["FIRECRAWL_API_KEY"])
 
-#################################################
-# Section 2: Processing the inputs
+
 st.session_state.doc_str = []
-if octoai_api_key:
+if (st.session_state.octoai_api_key is not None) and (
+    st.session_state.get("process_new_inputs", False)
+):
 
     if len(upload_files):
         if len(upload_files) == 1:
@@ -256,11 +284,15 @@ if octoai_api_key:
                         or upload_file.name.endswith(".mp4")
                         or upload_file.name.endswith(".wav")
                     ):
-                        doc_str = transcribe_audio(tf.name, octoai_api_key)
+                        doc_str = transcribe_audio(
+                            tf.name, st.session_state.octoai_api_key
+                        )
                     elif upload_file.name.endswith("jpg") or upload_file.name.endswith(
                         "jpeg"
                     ):
-                        doc_str = process_image(tf.name, octoai_api_key)
+                        doc_str = process_image(
+                            tf.name, st.session_state.octoai_api_key
+                        )
                     st.session_state.doc_str.append(doc_str)
 
     elif website_url:
@@ -277,24 +309,35 @@ if octoai_api_key:
         website_url_list = [url.strip() for url in website_url_list]
 
         with st.status(spinner_message):
+            got_error = ""
             for url in website_url_list:
                 # Crawl a website:
-                crawl_status = web_parser.crawl_url(
-                    url,
-                    params={
-                        "limit": 5,
-                        "scrapeOptions": {"formats": ["markdown"]},
-                        "excludePaths": ["/blog", "/docs"],
-                    },
-                    wait_until_done=True,
-                    poll_interval=20,
-                )
-                doc_str = ""
-                for page in crawl_status["data"]:
-                    doc_str += f"# {page['metadata']['title']}\n"
-                    doc_str += page["markdown"]
-                    doc_str += "\n"
-                st.session_state.doc_str.append(doc_str)
+                try:
+                    crawl_status = web_parser.crawl_url(
+                        url,
+                        params={
+                            "limit": 3,
+                            "scrapeOptions": {"formats": ["markdown"]},
+                            "excludePaths": ["/blog", "/docs"],
+                        },
+                        wait_until_done=True,
+                        poll_interval=20,
+                    )
+                except Exception as e:
+                    print(e)
+                    got_error = url
+                    break
+                else:
+                    doc_str = ""
+                    for page in crawl_status["data"]:
+                        doc_str += f"# {page['metadata']['title']}\n"
+                        doc_str += page["markdown"]
+                        doc_str += "\n"
+                    st.session_state.doc_str.append(doc_str)
+        if got_error:
+            st.error(
+                f"An error occurred while processing {got_error}. Please refresh and try again."
+            )
 
 
 #################################################
@@ -318,7 +361,7 @@ if "doc_str" in st.session_state.keys() and len(st.session_state.doc_str) > 0:
         for doc_str in st.session_state.doc_str:
             client = OpenAI(
                 base_url="https://text.octoai.run/v1",
-                api_key=octoai_api_key,
+                api_key=st.session_state.octoai_api_key,
             )
             system_prompt = """
 You are an expert LLM that processes large files and extracts entities according to the provided JSON schema:
@@ -350,7 +393,15 @@ ONLY RETURN THE JSON OBJECT, DON'T SAY ANYTHING ELSE, THIS IS CRUCIAL.
 
             # Update the dataframe
             update_dataframe(json_output)
+    st.session_state.doc_str = []
+    st.session_state.process_new_inputs = False
 
 if "data_frame" in st.session_state and not st.session_state.data_frame.empty:
     st.dataframe(st.session_state.data_frame)
-    st.button("Reset Dataframe", on_click=reset_dataframe)
+    col1, col2 = st.columns(2)
+    with col1:
+        st.caption(
+            "Upload files or enter URLs on the side bar to extract more entities."
+        )
+    with col2:
+        st.button("Reset Dataframe", on_click=reset_dataframe)
