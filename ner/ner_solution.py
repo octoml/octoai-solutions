@@ -3,7 +3,7 @@ import json
 import os
 import pandas as pd
 import requests
-import snowflake
+
 import streamlit as st
 import tempfile
 import yaml
@@ -13,7 +13,6 @@ from llama_parse import LlamaParse
 from firecrawl import FirecrawlApp
 from openai import OpenAI
 from pathlib import Path
-from snowflake.connector.pandas_tools import write_pandas
 
 
 def convert_to_json_schema(yaml_str):
@@ -69,7 +68,7 @@ def transcribe_audio(file_path: str, octoai_token: str):
 
 def file_to_base64(file_path):
     with open(file_path, "rb") as image_file:
-        return base64.b64encode(image_file.read()).decode('utf-8')
+        return base64.b64encode(image_file.read()).decode("utf-8")
 
 
 def process_image(file_path: str, octoai_token: str):
@@ -81,21 +80,16 @@ def process_image(file_path: str, octoai_token: str):
             "content": [
                 {
                     "type": "text",
-                    "text": "Describe what you see in the image in great detail"
+                    "text": "Describe what you see in the image in great detail",
                 },
-                {
-                    "type": "image_url",
-                    "image_url": {
-                        "url": base64_str
-                    }
-                }
-            ]
+                {"type": "image_url", "image_url": {"url": base64_str}},
+            ],
         }
     ]
     url = "https://text.octoai.run/v1/chat/completions"
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {octoai_token}"
+        "Authorization": f"Bearer {octoai_token}",
     }
     data = {
         "messages": messages,
@@ -104,11 +98,11 @@ def process_image(file_path: str, octoai_token: str):
         "presence_penalty": 0,
         "temperature": 0.1,
         "top_p": 0.9,
-        "stream": "False"
+        "stream": "False",
     }
 
     response = requests.post(url, headers=headers, data=json.dumps(data))
-    response = json.loads(response.content.decode('utf-8'))
+    response = json.loads(response.content.decode("utf-8"))
     return response["choices"][0]["message"]["content"]
 
 
@@ -156,15 +150,6 @@ st.sidebar.caption(
     See our [docs](https://octo.ai/docs/getting-started/how-to-create-octoai-access-token) for more information on how to get an API token.
 """
 )
-
-with st.sidebar.expander("Snowflake Settings", expanded=False):
-    snowflake_account = st.text_input("Snowflake Account", value="")
-    snowflake_user = st.text_input("Snowflake User", value="")
-    snowflake_password = st.text_input("Snowflake Password", value="", type="password")
-    snowflake_warehouse = st.text_input("Snowflake Warehouse", value="")
-    snowflake_database = st.text_input("Snowflake Database", value="")
-    snowflake_schema = st.text_input("Snowflake Schema", value="")
-    snowflake_table = st.text_input("Snowflake Table", value="")
 
 #################################################
 # Section 1: Inputs
@@ -272,9 +257,8 @@ if octoai_api_key:
                         or upload_file.name.endswith(".wav")
                     ):
                         doc_str = transcribe_audio(tf.name, octoai_api_key)
-                    elif (
-                        upload_file.name.endswith("jpg")
-                        or upload_file.name.endswith("jpeg")
+                    elif upload_file.name.endswith("jpg") or upload_file.name.endswith(
+                        "jpeg"
                     ):
                         doc_str = process_image(tf.name, octoai_api_key)
                     st.session_state.doc_str.append(doc_str)
@@ -370,53 +354,3 @@ ONLY RETURN THE JSON OBJECT, DON'T SAY ANYTHING ELSE, THIS IS CRUCIAL.
 if "data_frame" in st.session_state and not st.session_state.data_frame.empty:
     st.dataframe(st.session_state.data_frame)
     st.button("Reset Dataframe", on_click=reset_dataframe)
-
-    # Store to Snowflake
-    if (
-        snowflake_account
-        and snowflake_user
-        and snowflake_password
-        and snowflake_warehouse
-        and snowflake_database
-        and snowflake_schema
-        and snowflake_table
-    ):
-        if st.button("Store to Snowflake table"):
-
-            with st.status("Uploading to Snowflake..."):
-
-                # Snowflake Connector
-                conn = snowflake.connector.connect(
-                    user=snowflake_user,
-                    password=snowflake_password,
-                    account=snowflake_account,
-                    warehouse=snowflake_warehouse,
-                    database=snowflake_database,
-                    schema=snowflake_schema,
-                )
-
-                # Create Snowflake Warehouse, Database, Schema if they do not exist
-                conn.cursor().execute(
-                    "CREATE WAREHOUSE IF NOT EXISTS {}".format(snowflake_warehouse)
-                )
-                conn.cursor().execute(
-                    "CREATE DATABASE IF NOT EXISTS {}".format(snowflake_database)
-                )
-                conn.cursor().execute("USE DATABASE {}".format(snowflake_database))
-                conn.cursor().execute(
-                    "CREATE SCHEMA IF NOT EXISTS {}".format(snowflake_schema)
-                )
-                conn.cursor().execute("USE WAREHOUSE {}".format(snowflake_warehouse))
-                conn.cursor().execute("USE DATABASE {}".format(snowflake_database))
-                conn.cursor().execute("USE SCHEMA {}".format(snowflake_schema))
-
-                # Write pandas DataFrame to Snowflake
-                success, _, _, _ = write_pandas(
-                    conn=conn,
-                    df=st.session_state.data_frame,
-                    table_name=snowflake_table,
-                    schema=snowflake_schema,
-                    database=snowflake_database,
-                    auto_create_table=True,
-                    overwrite=True,
-                )
