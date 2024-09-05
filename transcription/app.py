@@ -94,17 +94,22 @@ def render_sidebar():
             )
         else:
 
-            tab1, tab2 = st.tabs(["Record", "Upload"])
-
-            # 1. Record audio then transcribe
-            with tab1:
-                do_audio_recording()
-
-            # 2. Transcription from file
-            with tab2:
-                do_file_upload()
-
             if RUNNING_SNOWFLAKE_NATIVE:
+                tab1, tab2 = st.tabs(
+                    [
+                        "Upload",
+                        "Record",
+                    ]
+                )
+
+                # 1. Transcription from file
+                with tab1:
+                    do_file_upload()
+
+                # 2. Record audio then transcribe
+                with tab2:
+                    do_audio_recording()
+
                 st.divider()
                 st.write(
                     "This app also installs a SQL UDF which can be called directly within your SQL scripts to transcribe audio stored in Snowflake stages."
@@ -112,6 +117,8 @@ def render_sidebar():
                 st.markdown(
                     "Usage:\n\n ```SELECT <APP NAME>.transcribe('@STAGE_LOCATION/FILE')```"
                 )
+            else:
+                do_file_upload()
 
 
 def reset_transcript():
