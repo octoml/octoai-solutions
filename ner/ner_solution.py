@@ -180,6 +180,13 @@ with st.sidebar:
 
             st.form_submit_button("Submit", on_click=submit_onclick)
 
+    st.write(
+        "See the code in [GitHub](https://github.com/octoml/octoai-solutions/tree/main/ner)."
+    )
+    st.write(
+        "[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/octoml/octoai-solutions)"
+    )
+
 st.write("## NER Playground")
 st.caption("Named Entity Recognition Playground.")
 
