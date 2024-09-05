@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "ehr-demo"
+version = "0.1.0"
+description = ""
+authors = ["Pedro Torruella <5025399+ptorru@users.noreply.github.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+requests = "^2.30.3"
+streamlit = "^1.36.0"
+streamlit-audiorecorder = "^0.0.5"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
