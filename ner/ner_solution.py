@@ -48,7 +48,7 @@ def transcribe_audio(file_path: str, octoai_token: str):
     with open(file_path, "rb") as f:
         encoded_audio = str(base64.b64encode(f.read()), "utf-8")
         reply = requests.post(
-            "https://whisper-4jkxk521l3v1.octoai.run/predict",
+            "https://whisper2-or1pkb9b656p.octoai.run/predict",
             headers={
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {octoai_token}",
