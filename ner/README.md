@@ -3,7 +3,7 @@ Today, data can be found in many different places. In order to use it however on
 
 NER Playground is a place to try Open Source LLMs for data extraction from a varied source of media: PDFs, images, audio, websites, and more!
 
-NET Playground is powered by LLMs served by [OctoAI](https://octo.ai)
+NER Playground is powered by LLMs served by [OctoAI](https://octo.ai)
 
 
 ## Prerequisites
