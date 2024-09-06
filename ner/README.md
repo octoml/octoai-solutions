@@ -17,8 +17,10 @@ Using LLMs for data extraction can benefit several industries and applications:
 * Law: Extract subject names, company names, addresses, facts, and other key points from contracts.
 * Education: Create preparation cards based on student assignments.
 
+In this playground you can easily modify the schema that will be used by the LLM to identify and extract key pieces of information in an structured manner. You can run several files through the same schema, finishing with a table that can be exported to a CSV file or other types of databases.
+
 ## For Developers
-Developers are encouraged to see the code for this application and create their own. This project has been packaed with [Poetry](https://python-poetry.org/docs/) for Python.
+If you are a developers then you are more than welcome to see the code for this application and create your own. This project has been packaed with [Poetry](https://python-poetry.org/docs/) for Python.
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/octoml/octoai-solutions)
 

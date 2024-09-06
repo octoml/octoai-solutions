@@ -9,11 +9,6 @@ WHISPER_API_URL = os.getenv(
 )
 OCTOAI_BASE_URL = os.getenv("OCTOAI_BASE_URL", "https://text.octoai.run/v1")
 
-MIXTRAL8X7B_BASE_URL = os.getenv("MIXTRAL8X7B_BASE_URL", "https://text.octoai.run/v1")
-HERMES2THETA_API_URL = os.getenv("HERMES2THETA_API_URL", "https://text.octoai.run/v1")
-MISTRAL7B_BASE_URL = os.getenv("MISTRAL7B_BASE_URL", "https://text.octoai.run/v1")
-WIZARDLM_BASE_URL = os.getenv("WIZARDLM_BASE_URL", "https://text.octoai.run/v1")
-
 RUNNING_SNOWFLAKE_NATIVE = os.getenv("RUNNING_SNOWFLAKE_NATIVE", False)
 
 
