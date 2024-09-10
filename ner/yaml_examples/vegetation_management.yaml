@@ -1,0 +1,7 @@
+# Describe the fields of information in YAML format
+power_delivery_line:
+    desc: yes if power delivery line is present in image, else no
+foliage:
+    desc: yes if foliage is present in image, else no
+foliage_close_to_power_delivery_line:
+    desc: yes if foliage is in contact with, or too close to power delivery line in image, else no

@@ -5,3 +5,4 @@ llama-parse
 streamlit-code-editor
 firecrawl-py
 snowflake-connector-python[pandas]
+boto3

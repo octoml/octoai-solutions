@@ -1,0 +1,13 @@
+# Describe the fields of information in YAML format
+merchant_name:
+    desc: name of merchant
+date:
+    desc: date on the receipt
+type:
+    desc: type of expense (e.g. food, transportation, lodging...)
+list_of_items:
+    desc: comma separated list of items on the bill
+total:
+    desc: bill total in dollars
+includes_alcohol:
+    desc: yes if the bill includes alcohol, else no

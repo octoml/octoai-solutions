@@ -1,0 +1,11 @@
+# Describe the fields of information in YAML format
+product_revenue:
+    desc: product revenue for the quarter
+product_revenue_year_over_year_growth:
+    desc: product revenue year over year growth for the quarter
+customers_over_one_mil:
+    desc: number of customer with trailing 12-month product revenue greater than 1 million
+investor_contact:
+    desc: name of investor contact
+investor_contact_email:
+    desc: email address of investor contact

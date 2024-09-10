@@ -1,0 +1,9 @@
+# Describe the fields of information in YAML format
+executive_summary:
+    desc: one sentence executive summary of the transcript
+symptoms_list:
+    desc: comma separated list of symptoms mentioned in the transcript
+medication_list:
+    desc: comma separated list of medication mentioned in the transcript
+procedures_list:
+    desc: comma separated list of procedures mentioned in the transcript
