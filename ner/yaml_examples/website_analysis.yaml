@@ -1,0 +1,6 @@
+# Describe the fields of information in YAML format
+# https://fireworks.ai/pricing, https://octo.ai/docs/getting-started/pricing-and-billing/, https://www.together.ai/pricing
+company_name:
+    desc: name of company
+cost_of_llama31_405b:
+    desc: cost of Llama 3.1 405B for 1M tokens
