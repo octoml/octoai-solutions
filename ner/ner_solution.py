@@ -132,7 +132,7 @@ def submit_new_token():
     st.session_state.octoai_api_key = st.session_state.token_text_input
 
 
-st.set_page_config(layout="wide", page_title="Multi-Modal Data Extractor")
+st.set_page_config(layout="wide", page_title="Multimodal Data Extractor")
 
 if "octoai_api_key" not in st.session_state:
     st.session_state.octoai_api_key = os.environ.get("OCTOAI_API_KEY", None)
@@ -197,7 +197,7 @@ with st.sidebar:
         "[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/octoml/octoai-solutions)"
     )
 
-st.write("## Multi-Modal Data Extractor")
+st.write("## Multimodal Data Extractor")
 st.caption("Powered by OctoAI.")
 
 #################################################
